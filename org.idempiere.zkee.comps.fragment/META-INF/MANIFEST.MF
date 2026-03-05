@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: zkee components fragment
 Bundle-SymbolicName: org.idempiere.zkee.comps.fragment
-Bundle-Version: 12.0.1.qualifier
+Bundle-Version: 12.0.0.qualifier
 Bundle-Vendor: iDempiere Community
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-ClassPath: .,
