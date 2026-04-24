@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+	<config-name>idempiere-zkee-fragment</config-name>
+	<depends>zkmax,zuti,za11y</depends>
+	<device-config>
+		<device-type>ajax</device-type>
+		<server-push-class>org.idempiere.ui.zk.DelegatingServerPush</server-push-class>
+	</device-config>
+</config>

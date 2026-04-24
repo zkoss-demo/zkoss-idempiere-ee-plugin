@@ -6,7 +6,7 @@ Fragment that attaches ZK PE/EE jars to `org.adempiere.ui.zk` so PE/EE component
 - `META-INF/MANIFEST.MF` — declares the fragment host and bundle classpath (`lib/zkex-osgi.jar`, `lib/zkmax-osgi.jar`, `lib/gson.jar`).
 - `build.properties` — packages `META-INF/` and `lib/` jars into the fragment.
 - `pom.xml` — eclipse-plugin packaging; uses zk EE eval repo; copies `zkex-osgi`, `zkmax-osgi`, and `gson` into `lib/` during `validate`.
-- `src/metainfo/zk.xml` — EE-specific zk configuration (`org.zkoss.zkmax.au.IWBS.disable=true`).
+- `src/metainfo/zk/config.xml` — EE-specific zk configuration loaded after ZK EE addons.
 - `lib/` — populated at build time with the ZK PE/EE jars.
 
 ## How to build

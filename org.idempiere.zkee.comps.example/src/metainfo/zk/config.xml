@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<zk>
-	<config-name>idempiere-zkee-fragment</config-name>
+<config>
+	<config-name>idempiere-zkee-comps-example</config-name>
 	<depends>client-bind</depends>
 	<listener>
 		<listener-class>org.zkoss.clientbind.BinderPropertiesRenderer</listener-class>
 	</listener>
-</zk>
+</config>
