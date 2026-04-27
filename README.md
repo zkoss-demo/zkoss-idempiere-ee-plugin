@@ -7,6 +7,10 @@ For general iDempiere plugin development guidelines, refer to the [iDempiere Wik
 
 This repository demonstrates how to create an iDempiere plugin that uses ZK EE components.
 
+This branch has been tested with **iDempiere 13**.
+
+If you want to build the plugin for **iDempiere 12**, please check out the [`v12` branch](https://github.com/zkoss-demo/zkoss-idempiere-ee-plugin/tree/v12).
+
 We assume readers:
 - Know the iDempiere basics
 - Know the ZK framework basics
@@ -15,11 +19,11 @@ With this project you can:
 - Build a ZK plugin with ZK EE components and install it into iDempiere
 - Follow the example project to create your own plugin with ZK EE components
 
-## 12.0.1 Highlights
+## iDempiere 13 Highlights
 
 - Added runtime modules to the fragment: `client-bind`, `zuti`, and `za11y`.
 - Enabled Client MVVM setup through fragment-level ZK configuration (`BinderPropertiesRenderer`).
-- Updated bundle/version line to `12.0.1` for iDempiere 12-aligned releases.
+- Disabled ZK EE's inaccessible widget block service in the fragment configuration for compatibility with the iDempiere login flow.
 
 Building iDempiere plugins requires having the iDempiere core libraries available as a local p2 repository. This guide will walk you through the process of setting up the necessary dependencies and building the plugin.
 
