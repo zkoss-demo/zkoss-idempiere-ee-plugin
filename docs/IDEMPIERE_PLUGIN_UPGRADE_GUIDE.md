@@ -1,7 +1,16 @@
 # iDempiere Plugin Version Upgrade Guide
 
 This guide explains how to upgrade an existing iDempiere plugin to a new iDempiere version.
-It uses `zkoss-idempiere-ee-plugin` as a concrete reference example (currently on iDempiere 12).
+It uses `zkoss-idempiere-ee-plugin` as a concrete reference example.
+
+## Version Matrix
+
+| Target iDempiere | Core branch | Required Java |
+|---|---|---|
+| 12.x | `release-12` | Java 17 |
+| 13.x | `release-13` | Java 21 |
+
+Keep the Maven JDK, `Bundle-RequiredExecutionEnvironment`, Tycho compiler settings, and runtime JDK aligned with the target iDempiere major version.
 
 ---
 
@@ -30,14 +39,22 @@ zkoss-idempiere-ee-plugin/
 
 Before starting, identify the following version numbers in the **new** iDempiere release:
 
-| Variable | Example (v12) | Where to find it |
+| Variable | Example (v13) | Where to find it |
 |---|---|---|
-| `IDEMPIERE_VERSION` | `12.0.0` | iDempiere release notes / core MANIFEST.MF files |
-| `PLUGIN_VERSION` | `12.0.1` | Your own plugin versioning (usually IDEMPIERE_VERSION + patch) |
-| `ZK_CE_VERSION` | `10.0.1` | iDempiere's embedded ZK CE version. Check `org.idempiere.p2.targetplatform/base.target` or `org.adempiere.ui.zk/META-INF/MANIFEST.MF` in the new core |
+| `IDEMPIERE_VERSION` | `13.0.0` | iDempiere release notes / core MANIFEST.MF files |
+| `PLUGIN_VERSION` | `13.0.0` | Your own plugin versioning (usually IDEMPIERE_VERSION + patch) |
+| `ZK_CE_VERSION` | `10.0.1` | iDempiere's embedded ZK CE version. Check target platform files or `org.adempiere.ui.zk/META-INF/MANIFEST.MF` in the new core |
 | `ZK_EE_VERSION` | `10.0.1-Eval` | Compatible ZK EE eval release, usually the same upstream ZK version with `-Eval` appended (see [mavensync.zkoss.org](https://mavensync.zkoss.org)) |
-| `TYCHO_VERSION` | `4.0.7` | Eclipse Tycho — only change if iDempiere itself upgrades |
-| `JDK_VERSION` | `17` | Java version used by iDempiere |
+| `TYCHO_VERSION` | `4.0.7` | Eclipse Tycho version from `idempiere/org.idempiere.parent/pom.xml` |
+| `JDK_VERSION` | `21` | Java version used by the target iDempiere release |
+
+Use these commands against the target iDempiere core:
+
+```bash
+rg 'id="zk"' idempiere/org.idempiere.p2.targetplatform/*.target
+rg 'zk;bundle-version=' idempiere/org.adempiere.ui.zk/META-INF/MANIFEST.MF
+rg '<tycho.version>' idempiere/org.idempiere.parent/pom.xml
+```
 
 ---
 
@@ -50,14 +67,14 @@ This is the single most important file; all child POMs inherit from it.
 ```xml
 <properties>
     <!-- Change to new plugin version -->
-    <revision>12.0.1-SNAPSHOT</revision>      <!-- UPDATE: X.Y.Z-SNAPSHOT -->
+    <revision>13.0.0-SNAPSHOT</revision>      <!-- UPDATE: X.Y.Z-SNAPSHOT -->
 
-    <!-- Only change Tycho if iDempiere itself moved to a newer Tycho -->
-    <tycho.version>4.0.7</tycho.version>
+    <!-- Use the value from idempiere/org.idempiere.parent/pom.xml -->
+    <tycho.version>NEW_TYCHO_VERSION</tycho.version>
 
-    <!-- Update if iDempiere now requires a newer JDK -->
-    <jdk.version>17</jdk.version>
-    <target.version>17</target.version>
+    <!-- Java 17 for iDempiere 12, Java 21 for iDempiere 13 -->
+    <jdk.version>21</jdk.version>
+    <target.version>21</target.version>
 
     <!-- Path to iDempiere p2 repository (usually stays the same) -->
     <idempiere.core.repository.url>
@@ -100,6 +117,11 @@ Use the iDempiere **major.minor.0** form unless the target iDempiere bundle decl
 #### 2c. ZK CE bundle versions in `Require-Bundle`
 
 These come bundled with iDempiere. Check the new iDempiere core for the ZK CE version it ships:
+
+```bash
+rg 'id="zk"' idempiere/org.idempiere.p2.targetplatform/*.target
+rg 'zk;bundle-version=' idempiere/org.adempiere.ui.zk/META-INF/MANIFEST.MF
+```
 
 ```
   zcommon;bundle-version="OLD_ZK_CE_VERSION"    →    "NEW_ZK_CE_VERSION"
@@ -251,6 +273,16 @@ cd idempiere
 cd ../zkoss-idempiere-ee-plugin
 mvn clean verify -f parent-repository-pom.xml
 ```
+
+After the fragment reaches the `validate` phase, verify that the copied jars match the fragment metadata:
+
+```bash
+cd org.idempiere.zkee.comps.fragment
+find lib -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort
+rg 'lib/.*\.jar' META-INF/MANIFEST.MF build.properties
+```
+
+Every jar listed in `Bundle-ClassPath` and `bin.includes` must exist in `lib/`. If a required runtime jar was downloaded but is missing from either metadata file, add it before packaging.
 
 **Common build errors and fixes:**
 

@@ -11,8 +11,8 @@ The plugin uses the **fragment + plugin** OSGi pattern to embed ZK EE or ZK addo
 |---|---|---|
 | `PLUGIN_ID` | `com.mycompany.myplugin` | Reverse-domain Java package style |
 | `PLUGIN_NAME` | `My Plugin` | Human-readable display name |
-| `IDEMPIERE_VERSION` | `12.0.0` | Target iDempiere version (major.minor.patch) |
-| `PLUGIN_VERSION` | `12.0.1` | Plugin version, usually IDEMPIERE_VERSION + patch |
+| `IDEMPIERE_VERSION` | `13.0.0` | Target iDempiere version (major.minor.patch) |
+| `PLUGIN_VERSION` | `13.0.0` | Plugin version, usually IDEMPIERE_VERSION + patch |
 | `ZK_JAR_TYPE` | `ee-eval` \| `addon` | ZK EE evaluation jars or a custom addon jar |
 | `ZK_EE_VERSION` | `10.0.1-Eval` | Required if ZK_JAR_TYPE = ee-eval; choose a version compatible with the ZK CE version bundled by iDempiere |
 | `ZK_ADDON_ARTIFACT` | `zkcharts` | Required if ZK_JAR_TYPE = addon (Maven artifactId) |
@@ -20,7 +20,7 @@ The plugin uses the **fragment + plugin** OSGi pattern to embed ZK EE or ZK addo
 | `ZK_ADDON_GROUP` | `org.zkoss.zk` | Maven groupId of the addon jar |
 | `ZK_ADDON_REPO_URL` | `https://mavensync.zkoss.org/maven2` | Maven repo URL for the addon |
 | `WORKSPACE` | `/home/dev/idempiere-ws` | Absolute path to workspace root |
-| `JAVA_VERSION` | `17` | JDK version (17 or 21) |
+| `JAVA_VERSION` | `21` | JDK version. Use Java 17 for iDempiere 12 and Java 21 for iDempiere 13 |
 | `VENDOR` | `My Company` | Bundle-Vendor field |
 
 ### Derived values (computed from inputs — do not ask user)
@@ -32,20 +32,39 @@ PLUGIN_DIR    = ${WORKSPACE}/${PLUGIN_ID}/${PLUGIN_ID}
 PLUGIN_ROOT   = ${WORKSPACE}/${PLUGIN_ID}
 IDEMPIERE_MAJOR_MINOR = first two segments of IDEMPIERE_VERSION (e.g., 12.0)
 ZK_CE_VERSION = read from the built iDempiere core target platform or org.adempiere.ui.zk manifest
-TYCHO_VERSION = 4.0.7  (only change if iDempiere upgrades Tycho)
+TYCHO_VERSION = read from ${WORKSPACE}/idempiere/org.idempiere.parent/pom.xml
 JAVA_EXEC_ENV = JavaSE-${JAVA_VERSION}
 ```
+
+### Version matrix
+
+| Target iDempiere | Core branch | Required Java |
+|---|---|---|
+| 12.x | `release-12` | Java 17 |
+| 13.x | `release-13` | Java 21 |
+
+Do not mix Java levels across major iDempiere versions. Keep `JAVA_VERSION`, `Bundle-RequiredExecutionEnvironment`, Tycho compiler settings, and the JDK used to run Maven aligned with this table.
 
 ### Finding the ZK CE version
 
 Do not hardcode the ZK CE version from memory. Read it from the iDempiere core you built:
 
 ```bash
-rg '<unit id="zk" version=' ${WORKSPACE}/idempiere/org.idempiere.p2.targetplatform/base.target
+rg 'id="zk"' ${WORKSPACE}/idempiere/org.idempiere.p2.targetplatform/*.target
 rg 'zk;bundle-version=' ${WORKSPACE}/idempiere/org.adempiere.ui.zk/META-INF/MANIFEST.MF
 ```
 
 Use that value for the plugin bundle's ZK `Require-Bundle` entries. For ZK EE eval artifacts, use the compatible EE eval version, usually the same upstream ZK version with `-Eval` appended.
+
+### Finding the Tycho version
+
+Do not hardcode the Tycho version if you are generating a plugin for a different iDempiere release. Read it from the iDempiere parent POM:
+
+```bash
+rg '<tycho.version>' ${WORKSPACE}/idempiere/org.idempiere.parent/pom.xml
+```
+
+Use the discovered value for `TYCHO_VERSION` in `parent-repository-pom.xml`.
 
 ---
 
@@ -101,7 +120,7 @@ ls ${WORKSPACE}/idempiere/org.idempiere.p2/target/repository/
 ### 0c. Prerequisites check
 
 ```bash
-java -version   # must be 17 or 21
+java -version   # Java 17 for iDempiere 12, Java 21 for iDempiere 13
 mvn -version    # must be >= 3.8.6
 git --version
 ```
@@ -133,7 +152,7 @@ If this directory does not exist, the plugin build will fail with "target platfo
 ### 1b. Java version check
 
 ```bash
-java -version   # must be 17 or 21
+java -version   # Java 17 for iDempiere 12, Java 21 for iDempiere 13
 mvn -version    # must be >= 3.8.6
 ```
 
@@ -172,7 +191,7 @@ mkdir -p ${PLUGIN_DIR}/src/web
 
   <properties>
     <revision>${PLUGIN_VERSION}-SNAPSHOT</revision>
-    <tycho.version>4.0.7</tycho.version>
+    <tycho.version>${TYCHO_VERSION}</tycho.version>
     <jdk.version>${JAVA_VERSION}</jdk.version>
     <target.version>${JAVA_VERSION}</target.version>
     <idempiere.core.repository.url>file:///${basedir}/../../idempiere/org.idempiere.p2/target/repository</idempiere.core.repository.url>
@@ -480,6 +499,12 @@ Only create this file if `ZK_JAR_TYPE = ee-eval`. It enables ZK Client MVVM bind
   <listener>
     <listener-class>org.zkoss.clientbind.BinderPropertiesRenderer</listener-class>
   </listener>
+  <!-- Required for iDempiere 13 with ZK Max 10.
+       iDempiere sends login echo events to an initially invisible AdempiereWebUI window. -->
+  <library-property>
+    <name>org.zkoss.zkmax.au.IWBS.disable</name>
+    <value>true</value>
+  </library-property>
 </zk>
 ```
 
@@ -621,7 +646,96 @@ public class MyActivator extends Incremental2PackActivator {
 }
 ```
 
-### 5f. `${PLUGIN_DIR}/src/<package>/MyFormController.java`
+`Incremental2PackActivator` imports any `META-INF/2Pack_*.zip` files packaged in the plugin bundle. This is the recommended way to register Application Dictionary records such as `AD_Form` and `AD_Menu`; avoid manual SQL for distributable plugins.
+
+### 5f. `${PLUGIN_DIR}/META-INF/2Pack_1.0.0.zip` (recommended form registration)
+
+Custom forms must be registered in iDempiere's Application Dictionary (`AD_Form` + `AD_Menu`). Package the registration as a 2Pack ZIP in `META-INF/` so the activator imports it when the plugin starts.
+
+```
+META-INF/
+└── 2Pack_1.0.0.zip
+    ├── AD_Menu/
+    │   ├── dict/PackOut.xml
+    │   └── doc/AD_MenuDoc.xml
+```
+
+Generate two UUIDs before filling the template:
+
+```bash
+uuidgen # AD_Form_UU
+uuidgen # AD_Menu_UU
+```
+
+Create `AD_Menu/dict/PackOut.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<idempiere Name="AD_Menu" Version="1.0.0"
+    idempiereVersion="${IDEMPIERE_VERSION}"
+    DataBaseVersion="2025-01-01"
+    Description="" Author="SuperUser"
+    AuthorEmail="superuser @ idempiere.com"
+    CreatedDate="2025-01-01" UpdatedDate="2025-01-01"
+    PackOutVersion="100" UpdateDictionary="false"
+    Client="0-SYSTEM-System"
+    AD_Client_UU="11237b53-9592-4af1-b3c5-afd216514b5d">
+  <AD_Menu type="table">
+    <SeqNo>999</SeqNo>
+    <AD_Client_ID>0</AD_Client_ID>
+    <AD_Org_ID>0</AD_Org_ID>
+    <Name>${PLUGIN_NAME}</Name>
+    <Action>X</Action>
+    <IsActive>Y</IsActive>
+    <IsSummary>N</IsSummary>
+    <AD_Form_ID reference="uuid" reference-key="AD_Form">GENERATED-FORM-UUID</AD_Form_ID>
+    <EntityType>U</EntityType>
+    <AD_Menu_UU>GENERATED-MENU-UUID</AD_Menu_UU>
+    <AD_Form type="table">
+      <AD_Client_ID>0</AD_Client_ID>
+      <AD_Org_ID>0</AD_Org_ID>
+      <IsActive>Y</IsActive>
+      <Name>${PLUGIN_NAME}</Name>
+      <Description>${PLUGIN_NAME}</Description>
+      <Classname>${PLUGIN_ID}.MyFormController</Classname>
+      <AccessLevel>7</AccessLevel>
+      <EntityType>U</EntityType>
+      <IsBetaFunctionality>N</IsBetaFunctionality>
+      <AD_Form_UU>GENERATED-FORM-UUID</AD_Form_UU>
+    </AD_Form>
+  </AD_Menu>
+</idempiere>
+```
+
+Create `AD_Menu/doc/AD_MenuDoc.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<idempiere Name="AD_Menu">
+  <AD_Menu>
+    <Name>${PLUGIN_NAME}</Name>
+    <Action>X</Action>
+    <AD_Form>
+      <Name>${PLUGIN_NAME}</Name>
+      <Classname>${PLUGIN_ID}.MyFormController</Classname>
+    </AD_Form>
+  </AD_Menu>
+</idempiere>
+```
+
+Zip the 2Pack files:
+
+```bash
+cd ${PLUGIN_DIR}/META-INF
+mkdir -p 2pack_src/AD_Menu/{dict,doc}
+# Write PackOut.xml and AD_MenuDoc.xml into 2pack_src/AD_Menu/{dict,doc}, then:
+cd 2pack_src
+zip -r ../2Pack_1.0.0.zip AD_Menu/
+cd ..
+rm -rf 2pack_src
+```
+
+### 5g. `${PLUGIN_DIR}/src/<package>/MyFormController.java`
 
 ```java
 package ${PLUGIN_ID};
@@ -647,7 +761,7 @@ public class MyFormController implements IFormController {
 }
 ```
 
-### 5g. `${PLUGIN_DIR}/src/<package>/MyForm.java`
+### 5h. `${PLUGIN_DIR}/src/<package>/MyForm.java`
 
 ```java
 package ${PLUGIN_ID};
@@ -663,6 +777,10 @@ public class MyForm extends CustomForm {
     public MyForm() {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         try {
+            // CRITICAL: DO NOT REMOVE THIS BLOCK.
+            // ZK resolves "~./" resources through the thread context classloader.
+            // Without this swap, iDempiere/ZK may look in org.adempiere.ui.zk
+            // instead of this plugin bundle and fail to load the ZUL.
             Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
             Component form = Executions.createComponents("~./my-form.zul", this, null);
             Selectors.wireComponents(form, this, false);
@@ -675,7 +793,7 @@ public class MyForm extends CustomForm {
 
 **Important:** Always swap the context classloader before `Executions.createComponents()` and restore it in `finally`. This ensures ZK resolves `~./` paths from the plugin's classloader, not the caller's.
 
-### 5h. `${PLUGIN_DIR}/src/web/my-form.zul`
+### 5i. `${PLUGIN_DIR}/src/web/my-form.zul`
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -697,6 +815,16 @@ cd ${FRAGMENT_DIR}
 mvn clean -U -DskipTests verify
 # Output: target/${FRAGMENT_ID}-${IDEMPIERE_VERSION}.qualifier.jar
 ```
+
+After `mvn validate` or `mvn verify`, verify that the downloaded jars match the fragment manifest and `build.properties`:
+
+```bash
+cd ${FRAGMENT_DIR}
+find lib -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort
+rg 'lib/.*\.jar' META-INF/MANIFEST.MF build.properties
+```
+
+Every jar listed in `Bundle-ClassPath` and `bin.includes` must exist in `lib/`. If Maven downloaded an additional transitive jar that is required at runtime, add it to both files. If a listed jar is missing, fix the dependency-copy artifact list or the stable jar name produced by `stripVersion=true`.
 
 ### 6b. Build plugin
 
@@ -797,27 +925,11 @@ Open `http://localhost:8080/osgi/system/console/bundles` and search for your plu
 If the plugin is **Resolved** but not **Active**, click the Start button.
 If the plugin is **Installed**, there is a dependency resolution error — check the logs.
 
-### 8b. Register a custom form for testing
+### 8b. Verify custom form registration
 
-Add the form to iDempiere via System → Windows/Tabs/Fields or use the AD_Form table:
+Use the 2Pack ZIP from Step 5f as the primary registration path. After the plugin starts, check the server log for the 2Pack import and then search for `${PLUGIN_NAME}` in the iDempiere menu/window search.
 
-```sql
-INSERT INTO AD_Form (
-    AD_Form_ID, AD_Client_ID, AD_Org_ID, IsActive, Created, CreatedBy,
-    Updated, UpdatedBy, Name, Description, Classname, EntityType,
-    AD_Form_UU, IsBetaFunctionality, AccessLevel
-) VALUES (
-    nextval('ad_form_seq'), 0, 0, 'Y', now(), 100,
-    now(), 100,
-    '${PLUGIN_NAME}',
-    '${PLUGIN_NAME} test form',
-    '${PLUGIN_ID}.MyFormController',
-    'U',
-    gen_random_uuid(), 'N', '7'
-);
-```
-
-Then navigate to the form in iDempiere UI: Search for `${PLUGIN_NAME}` in the menu/window search.
+Manual SQL registration is not recommended for distributable plugins because it is harder to repeat across environments and upgrades.
 
 ### 8c. Server log check
 
@@ -839,7 +951,7 @@ grep -i "error\|exception" $IDEMPIERE_HOME/log/console.log | grep "${PLUGIN_ID}"
 | `Cannot resolve bundle org.adempiere.base_X` | `Require-Bundle` version mismatch | Align version in MANIFEST.MF with deployed iDempiere version |
 | `Target platform cannot be resolved` | p2 repo not built | Run `./mvnw clean install` in `${WORKSPACE}/idempiere/` |
 | ZK widget not found | lang-addon.xml missing from fragment | Add `src/metainfo/zk/lang-addon.xml` or check addon jar contains it |
-| Form not visible in UI | Form not registered in AD_Form | Insert row into AD_Form table (see 8b) |
+| Form not visible in UI | 2Pack was not packaged or imported | Verify `META-INF/2Pack_*.zip` is inside the plugin jar and the activator extends `Incremental2PackActivator` |
 
 ---
 
@@ -859,6 +971,7 @@ Every file to create, with what to substitute:
 | `${PLUGIN_ID}/pom.xml` | PLUGIN_ID, ZK_EE_VERSION (ZK EE only) |
 | `${PLUGIN_ID}/OSGI-INF/*.xml` | PLUGIN_ID |
 | `${PLUGIN_ID}/src/.../MyActivator.java` | PLUGIN_ID |
+| `${PLUGIN_ID}/META-INF/2Pack_1.0.0.zip` | IDEMPIERE_VERSION, PLUGIN_ID, PLUGIN_NAME, generated UUIDs |
 | `${PLUGIN_ID}/src/.../MyFormController.java` | PLUGIN_ID |
 | `${PLUGIN_ID}/src/.../MyForm.java` | PLUGIN_ID |
 | `${PLUGIN_ID}/src/web/my-form.zul` | PLUGIN_NAME |

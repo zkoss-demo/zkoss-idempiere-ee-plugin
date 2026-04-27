@@ -4,9 +4,14 @@
 
 The first step is to clone the main iDempiere project, which provides the core libraries needed to build the plugins.
 
+| Target iDempiere | Branch | Required Java |
+|---|---|---|
+| 12.x | `release-12` | Java 17 |
+| 13.x | `release-13` | Java 21 |
+
 ```bash
-# Clone version 12 of the iDempiere project
-git clone --branch release-12 https://github.com/idempiere/idempiere.git idempiere
+# Clone iDempiere 13
+git clone --branch release-13 https://github.com/idempiere/idempiere.git idempiere
 ```
 
 This will create a directory named `idempiere` containing the iDempiere source code.
@@ -28,7 +33,15 @@ cd idempiere
 > ./mvnw clean install
 > ```
 >
-> After pulling, check the ZK CE version in `org.idempiere.p2.targetplatform/base.target` (look for `<unit id="zk" version="..."/>`) or in `org.adempiere.ui.zk/META-INF/MANIFEST.MF`. If it changed, update the ZK bundle versions in `org.idempiere.zkee.comps.example/META-INF/MANIFEST.MF` and update the `org.zkoss.zk` artifact versions in `org.idempiere.zkee.comps.fragment/pom.xml` to the compatible EE eval release (usually the same upstream ZK version with `-Eval` appended).
+> After pulling, check the ZK CE version in the target platform files or in `org.adempiere.ui.zk/META-INF/MANIFEST.MF`:
+>
+> ```bash
+> rg 'id="zk"' org.idempiere.p2.targetplatform/*.target
+> rg 'zk;bundle-version=' org.adempiere.ui.zk/META-INF/MANIFEST.MF
+> rg '<tycho.version>' org.idempiere.parent/pom.xml
+> ```
+>
+> If ZK changed, update the ZK bundle versions in `org.idempiere.zkee.comps.example/META-INF/MANIFEST.MF` and update the `org.zkoss.zk` artifact versions in `org.idempiere.zkee.comps.fragment/pom.xml` to the compatible EE eval release (usually the same upstream ZK version with `-Eval` appended). If Tycho changed, update the plugin parent POM.
 
 ## 3. Point target platform files to absolute core paths, if needed
 
@@ -74,6 +87,11 @@ cd zkoss-idempiere-ee-plugin/org.idempiere.zkee.comps.fragment
 mvn clean -U -DskipTests -am verify
 ```
    This runs the dependency-copy step and produces `org.idempiere.zkee.comps.fragment/target/org.idempiere.zkee.comps.fragment-<version>.jar`.
+   After the validate phase, verify the copied jars match `META-INF/MANIFEST.MF` and `build.properties`:
+```bash
+find lib -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort
+rg 'lib/.*\.jar' META-INF/MANIFEST.MF build.properties
+```
 2) Install the fragment into your OSGi runtime (for example via Felix Web Console, or by placing the jar in the plugins directory) and restart the server so the host bundle (`org.adempiere.ui.zk`) resolves with the fragment on its classpath.
 3) Confirm the fragment is **Resolved** and attached to the host; the ZK PE/EE widgets (defined in the embedded `zkex`/`zkmax` lang-addons) should render without "widget class required" errors.
 4) If you use Client MVVM (`org.zkoss.clientbind.ClientBindComposer`), the fragment also ships `client-bind`, `zuti`, and `za11y` modules so those runtime classes/resources are available to the host bundle classloader.

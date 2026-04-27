@@ -16,7 +16,7 @@ The workspace root can be **any directory** of your choice. The only constraint 
     │   ├── META-INF/MANIFEST.MF
     │   ├── build.properties
     │   ├── pom.xml
-    │   └── src/metainfo/zk/zk.xml   ← only needed for ZK EE (Client MVVM)
+    │   └── src/metainfo/zk/zk.xml   ← ZK EE config, including Client MVVM and iDempiere 13 zkmax compatibility
     └── <plugin-bundle>/              ← plugin bundle
         ├── META-INF/MANIFEST.MF
         ├── build.properties
@@ -70,4 +70,4 @@ If the plugin is not a direct sibling of `idempiere/`, update these two location
 
 Adjust the number of `../` segments to match your actual directory depth.
 
-Also verify the ZK versions against the iDempiere core you actually built. The safest source is the built core target platform or `org.adempiere.ui.zk/META-INF/MANIFEST.MF`, not an older example value copied from documentation.
+Also verify the ZK and Tycho versions against the iDempiere core you actually built. The safest sources are the built core target platform, `org.adempiere.ui.zk/META-INF/MANIFEST.MF`, and `org.idempiere.parent/pom.xml`, not older example values copied from documentation.
