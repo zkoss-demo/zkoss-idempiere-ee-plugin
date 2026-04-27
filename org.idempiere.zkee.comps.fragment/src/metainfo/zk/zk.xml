@@ -5,4 +5,8 @@
 	<listener>
 		<listener-class>org.zkoss.clientbind.BinderPropertiesRenderer</listener-class>
 	</listener>
+	<library-property>
+		<name>org.zkoss.zkmax.au.IWBS.disable</name>
+		<value>true</value>
+	</library-property>
 </zk>
