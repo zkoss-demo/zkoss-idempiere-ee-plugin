@@ -16,6 +16,7 @@ The plugin uses the **fragment + plugin** OSGi pattern to embed ZK EE or ZK addo
 | `ZK_JAR_TYPE` | `ee-eval` \| `addon` | ZK EE evaluation jars or a custom addon jar |
 | `ZK_EE_VERSION` | `10.0.1-Eval` | Required if ZK_JAR_TYPE = ee-eval; choose a version compatible with the ZK CE version bundled by iDempiere |
 | `ZK_ADDON_ARTIFACT` | `zkcharts` | Required if ZK_JAR_TYPE = addon (Maven artifactId) |
+| `ZK_ADDON_MODULES` | `keikai, keikai-ex, keikai-pdf` | Optional addon module list. Required when the addon is split across multiple artifacts, such as Keikai EE features or exporters |
 | `ZK_ADDON_VERSION` | `10.0.1` | Required if ZK_JAR_TYPE = addon |
 | `ZK_ADDON_GROUP` | `org.zkoss.zk` | Maven groupId of the addon jar |
 | `ZK_ADDON_REPO_URL` | `https://mavensync.zkoss.org/maven2` | Maven repo URL for the addon |
@@ -55,6 +56,20 @@ rg 'zk;bundle-version=' ${WORKSPACE}/idempiere/org.adempiere.ui.zk/META-INF/MANI
 ```
 
 Use that value for the plugin bundle's ZK `Require-Bundle` entries. For ZK EE eval artifacts, use the compatible EE eval version, usually the same upstream ZK version with `-Eval` appended.
+
+### Multi-module addon inventory
+
+Do not assume `ZK_ADDON_ARTIFACT` is the only jar needed by an addon. Some ZK addons are split into multiple feature modules that must be explicitly provided by the user or discovered from the product documentation before generating the plugin.
+
+For example, a Keikai plugin may need:
+
+| Module | Purpose |
+|---|---|
+| `keikai` | Base spreadsheet component and runtime |
+| `keikai-ex` | Enterprise features such as EE toolbar actions |
+| `keikai-pdf` | PDF export support |
+
+Treat these modules as first-class addon artifacts, not merely Maven transitive dependencies. Add each required module to the fragment `pom.xml` dependency-copy `<artifactItems>`, `META-INF/MANIFEST.MF` `Bundle-ClassPath`, and `build.properties` `bin.includes`. If a module provides integration through ZK library properties, also create or update `src/metainfo/zk/zk.xml`.
 
 ### Finding the Tycho version
 
@@ -301,6 +316,8 @@ Automatic-Module-Name: ${FRAGMENT_ID}
 
 **Note:** For addons that have transitive dependencies, add each jar to `Bundle-ClassPath` and list them in `pom.xml` `<artifactItems>`. Use `stripVersion=true` so jar names are stable (no version suffix).
 
+**Multi-module addons:** If the addon has multiple product modules, list every module jar here. For example, Keikai may require `lib/keikai.jar`, `lib/keikai-ex.jar`, and `lib/keikai-pdf.jar`; using only the base artifact can produce a plugin that renders the component but misses enterprise toolbar actions or exporters.
+
 ### 4b. `${FRAGMENT_DIR}/build.properties`
 
 #### For ZK EE
@@ -333,6 +350,8 @@ bin.includes = META-INF/,\
                lib/${ZK_ADDON_ARTIFACT}.jar
 jre.compilation.profile = JavaSE-${JAVA_VERSION}
 ```
+
+For multi-module addons, add every required module jar to `bin.includes` and keep this list identical to the jars in `Bundle-ClassPath`.
 
 ### 4c. `${FRAGMENT_DIR}/pom.xml`
 
@@ -473,6 +492,8 @@ jre.compilation.profile = JavaSE-${JAVA_VERSION}
                   <artifactId>${ZK_ADDON_ARTIFACT}</artifactId>
                   <version>${ZK_ADDON_VERSION}</version>
                 </artifactItem>
+                <!-- Add one artifactItem per required addon module.
+                     Example for Keikai: keikai, keikai-ex, keikai-pdf. -->
               </artifactItems>
               <outputDirectory>lib</outputDirectory>
               <stripVersion>true</stripVersion>
