@@ -73,3 +73,21 @@ Therefore: Fragment is required
 - [OSGi vogella blog](https://vogella.com/blog/osgi-bundles-fragments-dependencies/) - "A fragment is loaded in the same classloader as the host"
 - [bnd Fragment-Host docs](https://bnd.bndtools.org/heads/fragment_host.html) - "A fragment is a bundle that is attached to a host bundle"
 - [iDempiere Wiki - Make ZK WebApp OSGi](https://wiki.idempiere.org/en/Make_Zk_WebApp_OSGi) - iDempiere OSGi architecture
+
+---
+
+## See also
+
+Three repositories bring ZK commercial products into iDempiere. All three use the same
+OSGi **fragment + plugin** pattern described in the appendix above; they differ only in
+which jars the fragment carries.
+
+| Repository | Brings in | Start there when you want |
+|---|---|---|
+| **This repository** | ZK EE (`zkex`, `zkmax`, `client-bind`, `zuti`, `za11y`) | The general ZK EE component set. Its [new-plugin guide](docs/IDEMPIERE_NEW_PLUGIN_GUIDE.md) is the reference the other two repositories follow |
+| [zkoss-idempiere-zkcharts-plugin](https://github.com/zkoss-demo/zkoss-idempiere-zkcharts-plugin) | ZK Charts, ZK Pivottable | Charts and pivot tables - including replacing iDempiere's built-in chart rendering globally |
+| [zkoss-idempiere-keikai-plugin](https://github.com/zkoss-demo/zkoss-idempiere-keikai-plugin) | Keikai Spreadsheet (`keikai`, `keikai-ex`, `keikai-pdf`) | An Excel-compatible spreadsheet inside an iDempiere form |
+
+The three fragments target the same host bundle, `org.adempiere.ui.zk`, and can be
+installed side by side - OSGi allows a host any number of fragments. Each still needs its
+own restart to attach.

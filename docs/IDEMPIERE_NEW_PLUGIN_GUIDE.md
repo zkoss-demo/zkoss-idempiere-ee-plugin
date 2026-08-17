@@ -814,6 +814,75 @@ public class MyForm extends CustomForm {
 
 **Important:** Always swap the context classloader before `Executions.createComponents()` and restore it in `finally`. This ensures ZK resolves `~./` paths from the plugin's classloader, not the caller's.
 
+#### When *replacing* the classloader is not enough
+
+The swap above **replaces** the context classloader, so for the duration of the call only
+this bundle's resources are visible. That is correct when every `~./` page loaded during
+`createComponents()` lives in this bundle — the usual case.
+
+It stops being correct as soon as the ZUL uses an addon component that loads a page of its
+own out of the addon jar. Those pages live in the *fragment*, i.e. on the host bundle's
+classloader, and the replacement has just hidden them. The symptom is a `Page not found:
+~./...` naming a path you never wrote yourself.
+
+**Fix: chain the loaders instead of replacing.** Delegate to the host bundle's classloader
+(reachable through any iDempiere UI class, e.g. `CustomForm.class.getClassLoader()`) and to
+this bundle's, so both stay visible:
+
+```java
+private static class ChainedClassLoader extends ClassLoader {
+    private final ClassLoader[] delegates;
+
+    ChainedClassLoader(ClassLoader... delegates) {
+        super(null); // no parent: the delegates decide what is visible
+        this.delegates = delegates;
+    }
+
+    @Override
+    protected Class<?> findClass(String name) throws ClassNotFoundException {
+        for (ClassLoader d : delegates) {
+            try { return d.loadClass(name); } catch (ClassNotFoundException expected) { }
+        }
+        throw new ClassNotFoundException(name);
+    }
+
+    @Override
+    protected URL findResource(String name) {
+        for (ClassLoader d : delegates) {
+            URL url = d.getResource(name);
+            if (url != null) return url;
+        }
+        return null;
+    }
+    // findResources: same idea, concatenating the enumerations
+}
+
+Thread.currentThread().setContextClassLoader(new ChainedClassLoader(
+        original,                              // ambient
+        CustomForm.class.getClassLoader(),     // org.adempiere.ui.zk + every fragment
+        getClass().getClassLoader()));         // this bundle
+```
+
+**Lazily loaded pages are a separate case.** The block above only covers pages loaded
+*during* `createComponents()`. A component that opens a dialog on a later click resolves
+that page under whatever context classloader the event thread happens to carry, long after
+the `finally` restored it. If such a dialog fails, wrap that specific event handler the
+same way — subclass the component and override the handler:
+
+```java
+@Override
+public void onClick$menuSomething(Event event) throws Exception {
+    Thread t = Thread.currentThread();
+    ClassLoader original = t.getContextClassLoader();
+    t.setContextClassLoader(CustomForm.class.getClassLoader());
+    try { super.onClick$menuSomething(event); }
+    finally { t.setContextClassLoader(original); }
+}
+```
+
+Verify before adding this — the ambient classloader may already resolve the page, in which
+case the subclass is dead code.
+
 ### 5i. `${PLUGIN_DIR}/src/web/my-form.zul`
 
 ```xml
@@ -973,6 +1042,8 @@ grep -i "error\|exception" $IDEMPIERE_HOME/log/console.log | grep "${PLUGIN_ID}"
 | `Target platform cannot be resolved` | p2 repo not built | Run `./mvnw clean install` in `${WORKSPACE}/idempiere/` |
 | ZK widget not found | lang-addon.xml missing from fragment | Add `src/metainfo/zk/lang-addon.xml` or check addon jar contains it |
 | Form not visible in UI | 2Pack was not packaged or imported | Verify `META-INF/2Pack_*.zip` is inside the plugin jar and the activator extends `Incremental2PackActivator` |
+| `Page not found: ~./...` for a path you did not write | The context classloader was *replaced*, hiding pages an addon component loads from the fragment | Chain the loaders — see [When replacing the classloader is not enough](#when-replacing-the-classloader-is-not-enough) |
+| SEVERE `TableName not correctly parsed` in the log | `MRole.addAccessSQL(sql, alias, ...)` expects the alias of the **first** table in the `FROM` clause; it parses that one and ignores the argument otherwise | Pass the first table's alias, not whichever table the query is conceptually "about" |
 
 ---
 

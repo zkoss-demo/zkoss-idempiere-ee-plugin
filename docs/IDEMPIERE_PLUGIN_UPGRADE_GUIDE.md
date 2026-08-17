@@ -274,6 +274,38 @@ cd ../zkoss-idempiere-ee-plugin
 mvn clean verify -f parent-repository-pom.xml
 ```
 
+If you build a plugin module that inherits directly from
+`idempiere/org.idempiere.parent/pom.xml` (for example a fragment POM or a
+`pom-core-parent.xml` build mode), Tycho resolves the installed
+`org.idempiere.p2.targetplatform` artifact from `~/.m2`. Standalone Maven cannot
+resolve Eclipse workspace variables such as:
+
+```text
+${project_loc:org.idempiere.p2.targetplatform}
+```
+
+Do **not** work around this by changing the plugin's parent POM just to avoid the
+target-platform error. Fix the iDempiere target platform files instead, then
+reinstall the target-platform artifact:
+
+```bash
+# In both target files, replace ${project_loc:org.idempiere.p2.targetplatform}
+# with the absolute path to the local targetplatform directory, e.g.
+# /Users/yourname/parent-folder/idempiere/org.idempiere.p2.targetplatform
+vi idempiere/org.idempiere.p2.targetplatform/org.idempiere.p2.targetplatform.target
+vi idempiere/org.idempiere.p2.targetplatform/org.idempiere.p2.targetplatform.mirror.target
+
+cd idempiere/org.idempiere.p2.targetplatform
+mvn install -DskipTests
+
+# Confirm the installed target artifact no longer contains project_loc.
+rg 'project_loc' ~/.m2/repository/org/idempiere/org.idempiere.p2.targetplatform
+```
+
+After reinstalling, direct module builds such as `mvn clean verify` inside a
+fragment directory should resolve the target definition without the invalid URI
+error.
+
 After the fragment reaches the `validate` phase, verify that the copied jars match the fragment metadata:
 
 ```bash
@@ -292,7 +324,7 @@ Every jar listed in `Bundle-ClassPath` and `bin.includes` must exist in `lib/`. 
 | `Artifact not found: org.zkoss.zk:zkex:NEW_VERSION` | ZK EE version not published yet | Check [mavensync.zkoss.org/zk/ee-eval](https://mavensync.zkoss.org/zk/ee-eval) for available versions |
 | `Target platform cannot be resolved` | `.target` file path broken | Verify iDempiere p2 repo was built and path in `.target` is correct |
 | `Package org.zkoss.* not accessible` | ZK CE version mismatch in MANIFEST | Align `Require-Bundle` ZK versions with what iDempiere ships |
-| `Invalid URI file:${project_loc:...}` | `org.idempiere.p2.targetplatform.target` still contains Eclipse-workspace variables | Replace `${project_loc:org.idempiere.p2.targetplatform}` with the absolute path to your `org.idempiere.p2.targetplatform` directory in both `org.idempiere.p2.targetplatform.target` and `org.idempiere.p2.targetplatform.mirror.target`, then run `mvn install` in that directory (see [STEP_BY_STEP_GUIDE.md §3](STEP_BY_STEP_GUIDE.md)) |
+| `Invalid URI file:${project_loc:...}` | The installed `org.idempiere.p2.targetplatform` artifact in `~/.m2` still contains Eclipse-workspace variables | Replace `${project_loc:org.idempiere.p2.targetplatform}` with the absolute path to your `org.idempiere.p2.targetplatform` directory in both source target files, then run `mvn install -DskipTests` in `idempiere/org.idempiere.p2.targetplatform` so `~/.m2` is refreshed. Do not change plugin parent POMs just to bypass this error. See [STEP_BY_STEP_GUIDE.md §3](STEP_BY_STEP_GUIDE.md). |
 
 ---
 
