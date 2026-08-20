@@ -1,5 +1,5 @@
-# Building the iDempiere ZK EE Components Example Plugin
-By default, iDempiere uses ZK CE as its UI framework. To leverage advanced components and features available in ZK EE, an additional ZK EE plugin is required. This document provides a step-by-step guide on how to build the `org.idempiere.zkee.comps.example` plugin from the `zkoss-idempiere-ee-plugin` repository.
+# iDempiere ZK EE Components Plugin
+By default, iDempiere uses ZK CE as its UI framework. To leverage advanced components and features available in ZK EE, an additional ZK EE plugin is required. This repository provides that plugin, as a fragment plus an example form, and documents the pattern so you can build your own.
 
 For general iDempiere plugin development guidelines, refer to the [iDempiere Wiki](https://wiki.idempiere.org/en/Developing_Plug-Ins_-_Get_your_Plug-In_running).
 
@@ -25,20 +25,33 @@ With this project you can:
 - Enabled Client MVVM setup through fragment-level ZK configuration (`BinderPropertiesRenderer`).
 - Disabled ZK EE's inaccessible widget block service in the fragment configuration for compatibility with the iDempiere login flow.
 
-Building iDempiere plugins requires having the iDempiere core libraries available as a local p2 repository. This guide will walk you through the process of setting up the necessary dependencies and building the plugin.
+## Installing
 
-## Prerequisites
+You need a running iDempiere 13 instance - for example the
+[official Docker image](https://hub.docker.com/r/idempiereofficial/idempiere).
 
-Before you begin, ensure you have the following tools installed:
+Prebuilt jars are attached to each [release](https://github.com/zkoss-demo/zkoss-idempiere-ee-plugin/releases), so nothing has to be built to try the
+plugin:
 
--   **Git:** For cloning the iDempiere repository.
--   **Maven:** For building the projects.
--   **Java Development Kit (JDK):** Version 17 or higher.
--   **iDempiere Runtime**: An active instance (e.g., [Official Docker Image](https://hub.docker.com/r/idempiereofficial/idempiere)).
+| File | Purpose |
+|---|---|
+| `org.idempiere.zkee.comps.fragment-13.0.0.jar` | The ZK EE fragment. **Required.** |
+| `org.idempiere.zkee.comps.example-13.0.0.jar` | The example form. Optional. |
 
-## Step-by-step Guide
+**The order matters.** A fragment only takes effect once its host bundle is re-resolved, which
+means a restart:
 
-See the [Step-by-step Guide](docs/STEP_BY_STEP_GUIDE.md) for full build and deployment instructions.
+1. Install the fragment through the Felix Web Console (`/osgi/system/console/bundles`).
+2. **Restart the iDempiere runtime.** Besides re-resolving the host, ZK reads the fragment's
+   `zk.xml` library properties during web application initialization, so hot-deploying alone will
+   not enable Client MVVM.
+3. Install the example plugin if you want it.
+4. On the **Bundles** page, confirm the fragment shows as *Fragment* and the example plugin as
+   *Active* - not merely *Resolved*.
+5. Log out and back in, so the menu tree is rebuilt with the entry the plugin adds.
+
+To build the jars yourself instead, see [Building from source](#building-from-source) at the end
+of this file.
 
 ---
 
@@ -74,6 +87,38 @@ Therefore: Fragment is required
 - [bnd Fragment-Host docs](https://bnd.bndtools.org/heads/fragment_host.html) - "A fragment is a bundle that is attached to a host bundle"
 - [iDempiere Wiki - Make ZK WebApp OSGi](https://wiki.idempiere.org/en/Make_Zk_WebApp_OSGi) - iDempiere OSGi architecture
 
+## Prerequisites for building
+
+Before you begin, ensure you have the following tools installed:
+
+-   **Git:** For cloning the iDempiere repository.
+-   **Maven:** For building the projects.
+-   **Java Development Kit (JDK):** Version 17 or higher.
+-   **iDempiere Runtime**: An active instance (e.g., [Official Docker Image](https://hub.docker.com/r/idempiereofficial/idempiere)).
+
+## Building from source
+
+Only needed if you want to change the code. To install and try the plugin, download the jars
+attached to a release, as described under [Installing](#installing).
+
+Building iDempiere plugins requires the iDempiere core libraries as a local p2 repository.
+
+See the [Step-by-step Guide](docs/STEP_BY_STEP_GUIDE.md) for full build instructions, and the
+[plugin creation guide](docs/IDEMPIERE_NEW_PLUGIN_GUIDE.md) for building your own plugin around
+this pattern.
+
+### Publishing a release
+
+`./make-release.sh` collects every built jar into a local `release/` folder, dropping the
+`-SNAPSHOT` from the file name. That folder is git-ignored: upload its contents as attachments
+on the GitHub release page rather than committing them.
+
+The file name comes from the Maven version, which stays `13.0.0-SNAPSHOT`; the version OSGi
+actually uses is the `Bundle-Version` inside the jar, where `.qualifier` has been expanded to
+a build timestamp such as `13.0.0.202608190118`. Every build therefore gets a distinct OSGi
+version - Felix sees a rebuild as newer and updates it - while the published file stays
+`...-13.0.0.jar`.
+
 ---
 
 ## See also
@@ -88,6 +133,7 @@ which jars the fragment carries.
 | [zkoss-idempiere-zkcharts-plugin](https://github.com/zkoss-demo/zkoss-idempiere-zkcharts-plugin) | ZK Charts, ZK Pivottable | Charts and pivot tables - including replacing iDempiere's built-in chart rendering globally |
 | [zkoss-idempiere-keikai-plugin](https://github.com/zkoss-demo/zkoss-idempiere-keikai-plugin) | Keikai Spreadsheet (`keikai`, `keikai-ex`, `keikai-pdf`) | An Excel-compatible spreadsheet inside an iDempiere form |
 
-The three fragments target the same host bundle, `org.adempiere.ui.zk`, and can be
-installed side by side - OSGi allows a host any number of fragments. Each still needs its
-own restart to attach.
+The three fragments target the same host bundle, `org.adempiere.ui.zk`. OSGi allows a host
+any number of fragments, so they can be installed side by side - but check for overlap
+first: the Keikai fragment carries its own `zkex` and `zkcharts`, and not necessarily at
+the same versions as the other two fragments ship. Each fragment needs a restart to attach.
