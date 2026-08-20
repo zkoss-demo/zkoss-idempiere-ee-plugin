@@ -119,6 +119,38 @@ a build timestamp such as `13.0.0.202608190118`. Every build therefore gets a di
 version - Felix sees a rebuild as newer and updates it - while the published file stays
 `...-13.0.0.jar`.
 
+## License
+
+**The plugin source code** in this repository is licensed under the
+[GNU General Public License v2.0](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html) or
+later, the same license iDempiere itself uses. See [LICENSE.md](LICENSE.md).
+
+**The source tree contains no ZK binaries.** The fragment declares the ZK EE jars as Maven
+dependencies; the build downloads them from ZK's Evaluation repository into a git-ignored `lib/`.
+
+**The released jars are a different matter.** A fragment's whole job is to put those jars on the
+host bundle's class loader, so the built fragment embeds them:
+
+| Released jar | Contains | Redistributable under the GPL? |
+|---|---|---|
+| `org.idempiere.zkee.comps.example` | Only this project's own compiled code | Yes - GPLv2 or later |
+| `org.idempiere.zkee.comps.fragment` | 11 jars, ~7.5 MB: **ZK EE Evaluation** (`zkex`, `zkmax`, `client-bind`, `zuti`, `za11y`) plus `gson`, `javassist` and Jackson | **No** - the ZK jars are governed by ZK's license, not the GPL; the rest keep their own open-source licenses |
+
+| Component | License |
+|---|---|
+| This project's source and its own compiled bundle | GPLv2 or later |
+| ZK EE (`zkex`, `zkmax`, `client-bind`, `zuti`, `za11y`) | Commercial - Evaluation builds are used here |
+| `gson`, `javassist`, `jackson-*` | Their own open-source licenses, redistributed unmodified |
+| ZK CE (in iDempiere) | LGPL - already part of iDempiere, unchanged by this plugin |
+
+**What you may do with a downloaded fragment.** Install it and evaluate it. The Evaluation
+binaries inside are provided for evaluation only: they are not yours to redistribute, and a valid
+ZK EE license or subscription is required before use in production. Contact <info@zkoss.org>.
+
+**One caveat when backing out.** Removing the fragment returns the runtime to plain ZK CE and
+leaves iDempiere core untouched - but any form *you* wrote against an EE component stops working
+with it, so plan that boundary deliberately.
+
 ---
 
 ## See also
