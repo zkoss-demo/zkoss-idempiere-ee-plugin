@@ -1,7 +1,7 @@
 # iDempiere ZK EE Components Plugin
 By default, iDempiere uses ZK CE as its UI framework. To leverage advanced components and features available in ZK EE, an additional ZK EE plugin is required. This repository provides that plugin, as a fragment plus an example form, and documents the pattern so you can build your own.
 
-For general iDempiere plugin development guidelines, refer to the [iDempiere Wiki](https://wiki.idempiere.org/en/Developing_Plug-Ins_-_Get_your_Plug-In_running).
+For general iDempiere plugin development guidelines, refer to the official [Developing Plug-Ins](https://docs.idempiere.org/docs/category/developing-plug-ins) documentation.
 
 ## Introduction
 
@@ -50,6 +50,9 @@ means a restart:
    *Active* - not merely *Resolved*.
 5. Log out and back in, so the menu tree is rebuilt with the entry the plugin adds.
 
+For the other ways to get a bundle into a runtime - p2 repository, Gogo shell, dropping it into
+the plugins directory - see iDempiere's [Distributing and Installing Plug-ins](https://docs.idempiere.org/docs/basic-development/plugin-development/distributing-plugins).
+
 To build the jars yourself instead, see [Building from source](#building-from-source) at the end
 of this file.
 
@@ -85,7 +88,11 @@ Therefore: Fragment is required
 
 - [OSGi vogella blog](https://vogella.com/blog/osgi-bundles-fragments-dependencies/) - "A fragment is loaded in the same classloader as the host"
 - [bnd Fragment-Host docs](https://bnd.bndtools.org/heads/fragment_host.html) - "A fragment is a bundle that is attached to a host bundle"
-- [iDempiere Wiki - Make ZK WebApp OSGi](https://wiki.idempiere.org/en/Make_Zk_WebApp_OSGi) - iDempiere OSGi architecture
+- [iDempiere docs - OSGi and MANIFEST.MF Background](https://docs.idempiere.org/docs/basic-development/plugin-development/plugin-development-background) - how iDempiere uses OSGi and what
+  each `MANIFEST.MF` attribute does
+- [iDempiere wiki - Make ZK WebApp OSGi](https://wiki.idempiere.org/en/Make_Zk_WebApp_OSGi) -
+  how ZK is wired into iDempiere as an OSGi webapp. Still only on the legacy wiki; the new
+  documentation site has no equivalent page yet
 
 ## Prerequisites for building
 

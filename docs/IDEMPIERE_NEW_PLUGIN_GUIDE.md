@@ -1,5 +1,10 @@
 # iDempiere Plugin Creation Guide — ZK EE / ZK Addon Jar
 
+> This guide is specific to wrapping a commercial ZK jar as an OSGi fragment plus plugin. For
+> general iDempiere plugin development, the official documentation is
+> [Developing Plug-Ins](https://docs.idempiere.org/docs/category/developing-plug-ins); [OSGi and MANIFEST.MF Background](https://docs.idempiere.org/docs/basic-development/plugin-development/plugin-development-background) covers the manifest
+> attributes used below.
+
 This guide enables any AI Agent to create a new iDempiere plugin from scratch.
 The plugin uses the **fragment + plugin** OSGi pattern to embed ZK EE or ZK addon jars.
 
